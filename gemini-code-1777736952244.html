@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>我的空白诗集 - 自由画板版</title>
+    <link href="https://fonts.googleapis.com/css2?family=Long+Cang&family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;700&family=Zhi+Mang+Xing&display=swap" rel="stylesheet">
+    <style>
+        body, html {
+            margin: 0; padding: 0; height: 100%;
+            background-color: #fdfdfd;
+            overflow-x: hidden; /* 允许纵向滑动，防止横向溢出 */
+        }
+
+        #paper {
+            min-height: 100vh;
+            padding: 50px 10vw 200px 10vw;
+            position: relative; /* 核心：作为拖拽的基准 */
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .text-line {
+            display: inline-block; /* 宽度随文字走 */
+            max-width: 80%;
+            line-height: 1.6;
+            color: #2c2c2c;
+            cursor: grab;
+            user-select: none;
+            padding: 10px;
+            transition: opacity 0.5s;
+            /* 初始状态跟随 flex 布局 */
+            position: relative; 
+            z-index: 1;
+        }
+
+        .text-line:active { cursor: grabbing; }
+
+        /* 输入区域 */
+        #input-area {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: linear-gradient(transparent, #fdfdfd 40%);
+            padding: 50px 0 30px 0;
+            display: flex; justify-content: center;
+            z-index: 9999;
+        }
+
+        #typewriter {
+            width: 60%; max-width: 600px; padding: 15px;
+            font-size: 18px; border: none; border-bottom: 2px solid #eee;
+            background: transparent; outline: none; text-align: center;
+        }
+        #typewriter:focus { border-bottom-color: #333; }
+    </style>
+</head>
+<body>
+
+    <div id="paper"></div>
+
+    <div id="input-area">
+        <input type="text" id="typewriter" placeholder="写点什么，回车发送..." autocomplete="off">
+    </div>
+
+    <script>
+        const input = document.getElementById('typewriter');
+        const paper = document.getElementById('paper');
+        const fonts = ['"Noto Serif SC"', '"Long Cang"', '"Ma Shan Zheng"', '"Zhi Mang Xing"'];
+        let zIndexCounter = 10;
+
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && input.value.trim() !== '') {
+                const el = document.createElement('div');
+                el.className = 'text-line';
+                el.innerText = input.value;
+                
+                // 随机样式
+                el.style.fontFamily = fonts[Math.floor(Math.random() * fonts.length)];
+                el.style.fontSize = (Math.random() * 10 + 20) + 'px';
+                el.style.alignSelf = ['flex-start', 'center', 'flex-end'][Math.floor(Math.random() * 3)];
+                
+                paper.appendChild(el);
+                input.value = '';
+                makeDraggable(el);
+                
+                // 自动滚动到底部
+                window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+            }
+        });
+
+        function makeDraggable(el) {
+            let startX, startY, initialX, initialY;
+
+            el.addEventListener('mousedown', (e) => {
+                // 1. 提层级
+                el.style.zIndex = ++zIndexCounter;
+                
+                // 2. 转换定位模式：从跟随队列变成绝对定位
+                // 这一步是关键，记录下它当前在屏幕上的位置
+                if (el.style.position !== 'absolute') {
+                    const rect = el.getBoundingClientRect();
+                    const scrollY = window.pageYOffset || document.documentElement.scrollTop;
+                    const scrollX = window.pageXOffset || document.documentElement.scrollLeft;
+                    
+                    // 固定它当前的位置，防止切换定位时跳动
+                    el.style.left = (rect.left + scrollX) + 'px';
+                    el.style.top = (rect.top + scrollY) + 'px';
+                    el.style.position = 'absolute';
+                    el.style.margin = '0';
+                    el.style.alignSelf = 'auto'; 
+                }
+
+                startX = e.pageX;
+                startY = e.pageY;
+                initialX = parseFloat(el.style.left);
+                initialY = parseFloat(el.style.top);
+
+                const onMouseMove = (ev) => {
+                    const dx = ev.pageX - startX;
+                    const dy = ev.pageY - startY;
+                    el.style.left = (initialX + dx) + 'px';
+                    el.style.top = (initialY + dy) + 'px';
+                };
+
+                const onMouseUp = () => {
+                    document.removeEventListener('mousemove', onMouseMove);
+                    document.removeEventListener('mouseup', onMouseUp);
+                };
+
+                document.addEventListener('mousemove', onMouseMove);
+                document.addEventListener('mouseup', onMouseUp);
+            });
+        }
+    </script>
+</body>
+</html>
