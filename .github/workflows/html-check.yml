@@ -1,0 +1,25 @@
+name: HTML file checks
+on:
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate HTML files
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          from html.parser import HTMLParser
+          class Check(HTMLParser): pass
+          files=list(Path(".").glob("*.html"))
+          assert files, "Expected an HTML file"
+          for p in files:
+              content=p.read_text(encoding="utf-8")
+              assert "<html" in content.lower() and "</html>" in content.lower(), p
+              Check().feed(content)
+          print("HTML basic checks passed")
+          PY
