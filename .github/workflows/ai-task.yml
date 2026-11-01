@@ -1,0 +1,40 @@
+name: AI change proposal
+on:
+  issues:
+    types: [labeled]
+permissions:
+  contents: read
+jobs:
+  propose:
+    if: github.event.label.name == 'ai-task' && github.event.issue.author_association == 'OWNER'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -r requirements-agent.txt
+      - name: Save issue text
+        env:
+          ISSUE_TEXT: ${{ github.event.issue.body }}
+        run: printf '%s' "$ISSUE_TEXT" > task.txt
+      - name: Generate and review proposal
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: python agent.py
+      - run: rm -f task.txt
+      - uses: peter-evans/create-pull-request@v7
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ai/issue-${{ github.event.issue.number }}
+          title: 'AI proposal: issue #${{ github.event.issue.number }}'
+          body: 'AI-generated code; review carefully before merging.'
+          commit-message: 'ai: propose update for issue #${{ github.event.issue.number }}'
+          delete-branch: true
