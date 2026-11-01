@@ -4,14 +4,18 @@ on:
     types: [labeled]
 permissions:
   contents: read
+concurrency:
+  group: ai-budget
+  cancel-in-progress: false
 jobs:
   propose:
     if: github.event.label.name == 'ai-task' && github.event.issue.author_association == 'OWNER'
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     permissions:
       contents: write
       pull-requests: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -24,10 +28,11 @@ jobs:
         env:
           ISSUE_TEXT: ${{ github.event.issue.body }}
         run: printf '%s' "$ISSUE_TEXT" > task.txt
-      - name: Generate and review proposal
+      - name: Generate reviewed proposal (max three calls)
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python agent.py
       - run: rm -f task.txt
       - uses: peter-evans/create-pull-request@v7
@@ -35,6 +40,6 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           branch: ai/issue-${{ github.event.issue.number }}
           title: 'AI proposal: issue #${{ github.event.issue.number }}'
-          body: 'AI-generated code; review carefully before merging.'
+          body: 'AI-generated code. Review manually. Estimated task costs appear in the workflow log; real invoices are authoritative.'
           commit-message: 'ai: propose update for issue #${{ github.event.issue.number }}'
           delete-branch: true
